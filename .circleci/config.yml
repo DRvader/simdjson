@@ -73,7 +73,7 @@ executors:
         environment:
           CXX: clang++-6.0
           CMAKE_IMPLEMENTATION_FLAGS: -DSIMDJSON_IMPLEMENTATION_HASWELL=OFF -DSIMDJSON_IMPLEMENTATION_WESTMERE=OFF -DSIMDJSON_IMPLEMENTATION_FALLBACK=ON  -DSIMDJSON_IMPLEMENTATION_ARM64=OFF
-                
+
 # Reusable test commands (and initializer for clang 6)
 commands:
   init_clang6:
@@ -94,19 +94,19 @@ commands:
       - run: apt-get update -qq
       - run: apt-get install -y cmake
       - checkout
-      - run: cmake $CMAKE_FLAGS $CMAKE_IMPLEMENTATION_FLAGS
+      - run: cmake $CMAKE_FLAGS $CMAKE_IMPLEMENTATION_FLAGS -DCMAKE_INSTALL_PREFIX:PATH=destination
       - run: make all
-      - run: ctest --output-on-failure
+      - run: ctest --output-on-failure -E checkperf
 
   cmake_test: # this version builds, install, test and then verify from the installation
     steps:
-      - run: apt-get update -qq
-      - run: apt-get install -y cmake
-      - checkout
-      - run: cmake $CMAKE_FLAGS $CMAKE_IMPLEMENTATION_FLAGS -DCMAKE_INSTALL_PREFIX:PATH=destination
-      - run: make all install
-      - run: ctest --output-on-failure
+      - cmake_simple_test
+      - run: make install
       - run: echo -e '#include <simdjson.h>\nint main(int argc,char**argv) {simdjson::dom::parser parser;simdjson::dom::element tweets = parser.load(argv[1]); }' > tmp.cpp && c++ -Idestination/include -Ldestination/lib -std=c++17 -Wl,-rpath,destination/lib -o linkandrun tmp.cpp -lsimdjson && ./linkandrun jsonexamples/twitter.json # we not only want cmake to build and run tests, but we want also a succesful installation from which we can build, link and run programs
+
+  cmake_checkperf:
+    steps:
+      - run: ctest --output-on-failure -R checkperf
 
 jobs:
 
@@ -116,12 +116,12 @@ jobs:
 
   # make (test and checkperf)
   gcc9:
-    description: Build, run tests and check performance on GCC 7
+    description: Build, run tests and check performance on GCC 9
     executor: gcc9
     environment: { EXTRAFLAGS: -Werror }
     steps: [ make_test ]
   clang6:
-    description: Build, run tests and check performance on clang 6 and AVX 2
+    description: Build, run tests and check performance on clang 6
     executor: clang6
     environment: { EXTRAFLAGS: -Werror }
     steps: [ init_clang6, make_test ]
@@ -160,22 +160,22 @@ jobs:
     description: Build and run tests on GCC 7 and AVX 2 with a cmake static build
     executor: haswell-gcc7
     environment: { CMAKE_FLAGS: -DSIMDJSON_GOOGLE_BENCHMARKS=ON }
-    steps: [ cmake_test ]
+    steps: [ cmake_test, cmake_checkperf ]
   haswell-clang6:
     description: Build and run tests on clang 6 and AVX 2 with a cmake static build
     executor: haswell-clang6
     environment: { CMAKE_FLAGS: -DSIMDJSON_GOOGLE_BENCHMARKS=ON }
-    steps: [ init_clang6, cmake_test ]
+    steps: [ init_clang6, cmake_test, cmake_checkperf ]
   haswell-gcc8:
     description: Build and run tests on GCC 8 and AVX 2
     executor: haswell-gcc8
     environment: { CMAKE_FLAGS: -DSIMDJSON_GOOGLE_BENCHMARKS=ON }
-    steps: [ cmake_test ]
+    steps: [ cmake_test, cmake_checkperf ]
   haswell-gcc9:
     description: Build and run tests on GCC 9 and AVX 2
     executor: haswell-gcc9
     environment: { EXTRAFLAGS: -DSIMDJSON_GOOGLE_BENCHMARKS=ON }
-    steps: [ cmake_test ]
+    steps: [ cmake_test, cmake_checkperf ]
   
   # sanitize
   haswell-sanitize-gcc7:
@@ -194,12 +194,12 @@ jobs:
     description: Build and run tests on GCC 7 and AVX 2 with a cmake dynamic build
     executor: haswell-gcc7
     environment: { CMAKE_FLAGS: -DSIMDJSON_BUILD_STATIC=OFF }
-    steps: [ cmake_test ]
+    steps: [ cmake_test, cmake_checkperf ]
   haswell-dynamic-clang6:
     description: Build and run tests on clang 6 and AVX 2 with a cmake dynamic build
     executor: haswell-clang6
     environment: { CMAKE_FLAGS: -DSIMDJSON_BUILD_STATIC=OFF }
-    steps: [ init_clang6, cmake_test ]
+    steps: [ init_clang6, cmake_test, cmake_checkperf ]
   
   # unthreaded
   haswell-unthreaded-gcc7:
@@ -249,6 +249,7 @@ jobs:
   fallback-gcc7:
     description: Build and run tests on GCC 7 and fallback implementation with a cmake static build
     executor: fallback-gcc7
+    environment: { CMAKE_FLAGS: -DSIMDJSON_GOOGLE_BENCHMARKS=ON }
     steps: [ cmake_test ]
   fallback-clang6:
     description: Build and run tests on Clang 6 and fallback implementation with a cmake static build
