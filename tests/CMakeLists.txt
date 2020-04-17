@@ -84,10 +84,7 @@ endif()
 if(NOT (MSVC AND MSVC_VERSION LESS 1920))
   if(SIMDJSON_EXCEPTIONS)
     add_compile_test(readme_examples readme_examples.cpp quicktests)
-    set_property(
-      TEST readme_examples
-      APPEND PROPERTY LABELS quicktests
-    )
+    set_property(TEST readme_examples APPEND PROPERTY LABELS quicktests)
 
     add_compile_test(readme_examples11 readme_examples.cpp quicktests)
     set_target_properties(readme_examples11 PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF)
