@@ -121,20 +121,26 @@ endfunction()
 export_private_library(simdjson-flags)
 
 #
+# Set up test data
+#
+enable_testing()
+add_subdirectory(jsonchecker)
+add_subdirectory(jsonexamples)
+add_library(test-data INTERFACE)
+target_link_libraries(test-data INTERFACE jsonchecker-data jsonexamples-data)
+
+#
 # Create the top level simdjson library (must be done at this level to use both src/ and include/
 # directories)
 #
 add_subdirectory(include)
 add_subdirectory(src)
+add_subdirectory(singleheader)
 
 #
 # Compile tools / tests / benchmarks
 #
-enable_testing()
 
-add_library(test-data INTERFACE)
-target_compile_definitions(test-data INTERFACE SIMDJSON_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/jsonchecker/")
-target_compile_definitions(test-data INTERFACE SIMDJSON_BENCHMARK_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/jsonexamples/")
 
 add_subdirectory(windows)
 add_subdirectory(dependencies)

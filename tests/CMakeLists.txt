@@ -84,10 +84,6 @@ endif()
 if(NOT (MSVC AND MSVC_VERSION LESS 1920))
   if(SIMDJSON_EXCEPTIONS)
     add_compile_test(readme_examples readme_examples.cpp quicktests)
-    set_property(
-      TEST readme_examples
-      APPEND PROPERTY LABELS quicktests
-    )
 
     add_compile_test(readme_examples11 readme_examples.cpp quicktests)
     set_target_properties(readme_examples11 PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF)
@@ -95,7 +91,6 @@ if(NOT (MSVC AND MSVC_VERSION LESS 1920))
       target_compile_options(readme_examples11 PRIVATE -Werror)
     endif()
   endif()
-
   add_compile_test(readme_examples_noexceptions readme_examples_noexceptions.cpp quicktests)
 
   add_compile_test(readme_examples_noexceptions11 readme_examples_noexceptions.cpp quicktests)
@@ -108,11 +103,6 @@ if(NOT (MSVC AND MSVC_VERSION LESS 1920))
   add_compile_test(readme_examples_will_fail_with_exceptions_off readme_examples.cpp quicktests)
   target_compile_definitions(readme_examples_will_fail_with_exceptions_off PRIVATE SIMDJSON_EXCEPTIONS=0)
   set_tests_properties(readme_examples_will_fail_with_exceptions_off PROPERTIES WILL_FAIL TRUE)
-  set_property(
-    TEST readme_examples_noexceptions readme_examples_will_fail_with_exceptions_off
-    APPEND PROPERTY LABELS quicktests
-  )
-
 endif()
 
 
