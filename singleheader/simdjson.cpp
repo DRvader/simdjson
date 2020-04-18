@@ -59,7 +59,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdint.h>
 #include <stdlib.h>
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && !defined(__clang__)
 #include <intrin.h>
 #elif defined(HAVE_GCC_GET_CPUID) && defined(USE_GCC_GET_CPUID)
 #include <cpuid.h>
@@ -103,7 +103,7 @@ static inline uint32_t detect_supported_architectures() {
 #else // x86
 static inline void cpuid(uint32_t *eax, uint32_t *ebx, uint32_t *ecx,
                          uint32_t *edx) {
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && !defined(__clang__)
   int cpu_info[4];
   __cpuid(cpu_info, *eax);
   *eax = cpu_info[0];
@@ -291,7 +291,7 @@ static const uint64_t thintable_epi8[256] = {
     0x0000000000000000,
 }; //static uint64_t thintable_epi8[256]
 
-} // namespace simdjson 
+} // namespace simdjson
 
 #endif // SIMDJSON_SIMDPRUNE_TABLES_H
 /* end file src/simdprune_tables.h */
@@ -520,15 +520,15 @@ namespace simdjson::arm64 {
 really_inline uint64_t prefix_xor(uint64_t bitmask) {
   /////////////
   // We could do this with PMULL, but it is apparently slow.
-  //  
+  //
   //#ifdef __ARM_FEATURE_CRYPTO // some ARM processors lack this extension
   //return vmull_p64(-1ULL, bitmask);
   //#else
   // Analysis by @sebpop:
   // When diffing the assembly for src/stage1_find_marks.cpp I see that the eors are all spread out
-  // in between other vector code, so effectively the extra cycles of the sequence do not matter 
+  // in between other vector code, so effectively the extra cycles of the sequence do not matter
   // because the GPR units are idle otherwise and the critical path is on the FP side.
-  // Also the PMULL requires two extra fmovs: GPR->FP (3 cycles in N1, 5 cycles in A72 ) 
+  // Also the PMULL requires two extra fmovs: GPR->FP (3 cycles in N1, 5 cycles in A72 )
   // and FP->GPR (2 cycles on N1 and 5 cycles on A72.)
   ///////////
   bitmask ^= bitmask << 1;
@@ -561,7 +561,7 @@ namespace simdjson::arm64 {
 #ifndef _MSC_VER
 // We sometimes call trailing_zero on inputs that are zero,
 // but the algorithms do not end up using the returned value.
-// Sadly, sanitizers are not smart enough to figure it out. 
+// Sadly, sanitizers are not smart enough to figure it out.
 __attribute__((no_sanitize("undefined"))) // this is deliberate
 #endif // _MSC_VER
 /* result might be undefined when input_num is zero */
@@ -569,7 +569,7 @@ really_inline int trailing_zeroes(uint64_t input_num) {
 
 #ifdef _MSC_VER
   unsigned long ret;
-  // Search the mask data from least significant bit (LSB) 
+  // Search the mask data from least significant bit (LSB)
   // to the most significant bit (MSB) for a set bit (1).
   _BitScanForward64(&ret, input_num);
   return (int)ret;
@@ -588,7 +588,7 @@ really_inline uint64_t clear_lowest_bit(uint64_t input_num) {
 really_inline int leading_zeroes(uint64_t input_num) {
 #ifdef _MSC_VER
   unsigned long leading_zero = 0;
-  // Search the mask data from most significant bit (MSB) 
+  // Search the mask data from most significant bit (MSB)
   // to least significant bit (LSB) for a set bit (1).
   if (_BitScanReverse64(&leading_zero, input_num))
     return (int)(63 - leading_zero);
@@ -1343,7 +1343,7 @@ really_inline uint64_t follows(const uint64_t match, uint64_t &overflow) {
 
 //
 // Check if the current character follows a matching character, with possible "filler" between.
-// For example, this checks for empty curly braces, e.g. 
+// For example, this checks for empty curly braces, e.g.
 //
 //     in.eq('}') & follows(in.eq('['), in.eq(' '), prev_empty_array) // { <whitespace>* }
 //
@@ -1501,9 +1501,9 @@ WARN_UNUSED error_code implementation::minify(const uint8_t *buf, size_t len, ui
 //   support values with more than 23 bits (which a 4-byte character supports).
 //
 //   e.g. 11111000 10100000 10000000 10000000 10000000 (U+800000)
-//   
+//
 // Legal utf-8 byte sequences per  http://www.unicode.org/versions/Unicode6.0.0/ch03.pdf - page 94:
-// 
+//
 //   Code Points        1st       2s       3s       4s
 //  U+0000..U+007F     00..7F
 //  U+0080..U+07FF     C2..DF   80..BF
@@ -1562,7 +1562,7 @@ namespace utf8_validation {
 
     const simd8<uint8_t> byte_1_high = prev1.shr<4>().lookup_16<uint8_t>(
       // [0___]____ (ASCII)
-      0, 0, 0, 0,                          
+      0, 0, 0, 0,
       0, 0, 0, 0,
       // [10__]____ (continuation)
       0, 0, 0, 0,
@@ -1707,7 +1707,7 @@ namespace utf8_validation {
   // | ASCII (+ 127)        | `1`        | `11111111`   |    -1 |
   // |                      |            | `10000000`   |  -128 |
   // |----------------------|------------|--------------|-------|
-  // 
+  //
   // *Now* we can use signed `>` on all of them:
   //
   // ```
@@ -1736,7 +1736,7 @@ namespace utf8_validation {
   // prev3 = input.prev<3>
   // prev1_flipped = prev1 ^ 0x80; // Same as `+ 128`
   // prev3_flipped = prev3 ^ 0x80; // Same as `+ 128`
-  // prev2_flipped = prev1_flipped.concat<2>(prev3_flipped): // <shuffle: take the first 2 bytes from prev1 and the rest from prev3  
+  // prev2_flipped = prev1_flipped.concat<2>(prev3_flipped): // <shuffle: take the first 2 bytes from prev1 and the rest from prev3
   // ```
   //
   // ### Bringing It All Together: Detecting the Errors
@@ -1793,7 +1793,7 @@ namespace utf8_validation {
   // saving us the cycle we would have earned by using +. Even more, using an instruction with a
   // wider array of ports can help *other* code run ahead, too, since these instructions can "get
   // out of the way," running on a port other instructions can't.
-  // 
+  //
   // Epilogue II: One More Trick
   // ---------------------------
   //
@@ -2026,7 +2026,7 @@ really_inline void json_structural_indexer::step<64>(const uint8_t *block, buf_b
 //    they can make a lot of progress before they need that information.
 // 3. Step 1 doesn't use enough capacity, so we run some extra stuff while we're waiting for that
 //    to finish: utf-8 checks and generating the output from the last iteration.
-// 
+//
 // The reason we run 2 inputs at a time, is steps 2 and 3 are *still* not enough to soak up all
 // available capacity with just one input. Running 2 at a time seems to give the CPU a good enough
 // workout.
@@ -2295,7 +2295,7 @@ WARN_UNUSED error_code implementation::minify(const uint8_t *buf, size_t len, ui
 #define SIMDJSON_HASWELL_INTRINSICS_H
 
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
 #include <intrin.h> // visual studio
 #else
 #include <x86intrin.h> // elsewhere
@@ -2351,7 +2351,7 @@ really_inline int trailing_zeroes(uint64_t input_num) {
   return (int)_tzcnt_u64(input_num);
 #else
   ////////
-  // You might expect the next line to be equivalent to 
+  // You might expect the next line to be equivalent to
   // return (int)_tzcnt_u64(input_num);
   // but the generated code differs and might be less efficient?
   ////////
@@ -2534,11 +2534,11 @@ namespace simdjson::haswell::simd {
       // next line just loads the 64-bit values thintable_epi8[mask1] and
       // thintable_epi8[mask2] into a 128-bit register, using only
       // two instructions on most compilers.
-      __m256i shufmask =  _mm256_set_epi64x(thintable_epi8[mask4], thintable_epi8[mask3], 
+      __m256i shufmask =  _mm256_set_epi64x(thintable_epi8[mask4], thintable_epi8[mask3],
         thintable_epi8[mask2], thintable_epi8[mask1]);
       // we increment by 0x08 the second half of the mask and so forth
       shufmask =
-      _mm256_add_epi8(shufmask, _mm256_set_epi32(0x18181818, 0x18181818, 
+      _mm256_add_epi8(shufmask, _mm256_set_epi32(0x18181818, 0x18181818,
          0x10101010, 0x10101010, 0x08080808, 0x08080808, 0, 0));
       // this is the version "nearly pruned"
       __m256i pruned = _mm256_shuffle_epi8(*this, shufmask);
@@ -2733,7 +2733,7 @@ namespace simdjson::haswell::simd {
       );
     }
 
-    
+
 
     template <typename R=bool, typename F>
     really_inline simd8x64<R> map(const simd8x64<uint8_t> b, F const& map_chunk) const {
@@ -3085,7 +3085,7 @@ really_inline uint64_t follows(const uint64_t match, uint64_t &overflow) {
 
 //
 // Check if the current character follows a matching character, with possible "filler" between.
-// For example, this checks for empty curly braces, e.g. 
+// For example, this checks for empty curly braces, e.g.
 //
 //     in.eq('}') & follows(in.eq('['), in.eq(' '), prev_empty_array) // { <whitespace>* }
 //
@@ -3243,9 +3243,9 @@ WARN_UNUSED error_code implementation::minify(const uint8_t *buf, size_t len, ui
 //   support values with more than 23 bits (which a 4-byte character supports).
 //
 //   e.g. 11111000 10100000 10000000 10000000 10000000 (U+800000)
-//   
+//
 // Legal utf-8 byte sequences per  http://www.unicode.org/versions/Unicode6.0.0/ch03.pdf - page 94:
-// 
+//
 //   Code Points        1st       2s       3s       4s
 //  U+0000..U+007F     00..7F
 //  U+0080..U+07FF     C2..DF   80..BF
@@ -3304,7 +3304,7 @@ namespace utf8_validation {
 
     const simd8<uint8_t> byte_1_high = prev1.shr<4>().lookup_16<uint8_t>(
       // [0___]____ (ASCII)
-      0, 0, 0, 0,                          
+      0, 0, 0, 0,
       0, 0, 0, 0,
       // [10__]____ (continuation)
       0, 0, 0, 0,
@@ -3449,7 +3449,7 @@ namespace utf8_validation {
   // | ASCII (+ 127)        | `1`        | `11111111`   |    -1 |
   // |                      |            | `10000000`   |  -128 |
   // |----------------------|------------|--------------|-------|
-  // 
+  //
   // *Now* we can use signed `>` on all of them:
   //
   // ```
@@ -3478,7 +3478,7 @@ namespace utf8_validation {
   // prev3 = input.prev<3>
   // prev1_flipped = prev1 ^ 0x80; // Same as `+ 128`
   // prev3_flipped = prev3 ^ 0x80; // Same as `+ 128`
-  // prev2_flipped = prev1_flipped.concat<2>(prev3_flipped): // <shuffle: take the first 2 bytes from prev1 and the rest from prev3  
+  // prev2_flipped = prev1_flipped.concat<2>(prev3_flipped): // <shuffle: take the first 2 bytes from prev1 and the rest from prev3
   // ```
   //
   // ### Bringing It All Together: Detecting the Errors
@@ -3535,7 +3535,7 @@ namespace utf8_validation {
   // saving us the cycle we would have earned by using +. Even more, using an instruction with a
   // wider array of ports can help *other* code run ahead, too, since these instructions can "get
   // out of the way," running on a port other instructions can't.
-  // 
+  //
   // Epilogue II: One More Trick
   // ---------------------------
   //
@@ -3768,7 +3768,7 @@ really_inline void json_structural_indexer::step<64>(const uint8_t *block, buf_b
 //    they can make a lot of progress before they need that information.
 // 3. Step 1 doesn't use enough capacity, so we run some extra stuff while we're waiting for that
 //    to finish: utf-8 checks and generating the output from the last iteration.
-// 
+//
 // The reason we run 2 inputs at a time, is steps 2 and 3 are *still* not enough to soak up all
 // available capacity with just one input. Running 2 at a time seems to give the CPU a good enough
 // workout.
@@ -3874,7 +3874,7 @@ __attribute__((no_sanitize("undefined")))  // this is deliberate
 really_inline int trailing_zeroes(uint64_t input_num) {
 #ifdef _MSC_VER
   unsigned long ret;
-  // Search the mask data from least significant bit (LSB) 
+  // Search the mask data from least significant bit (LSB)
   // to the most significant bit (MSB) for a set bit (1).
   _BitScanForward64(&ret, input_num);
   return (int)ret;
@@ -3892,7 +3892,7 @@ really_inline uint64_t clear_lowest_bit(uint64_t input_num) {
 really_inline int leading_zeroes(uint64_t input_num) {
 #ifdef _MSC_VER
   unsigned long leading_zero = 0;
-  // Search the mask data from most significant bit (MSB) 
+  // Search the mask data from most significant bit (MSB)
   // to least significant bit (LSB) for a set bit (1).
   if (_BitScanReverse64(&leading_zero, input_num))
     return (int)(63 - leading_zero);
@@ -4605,7 +4605,7 @@ really_inline uint64_t follows(const uint64_t match, uint64_t &overflow) {
 
 //
 // Check if the current character follows a matching character, with possible "filler" between.
-// For example, this checks for empty curly braces, e.g. 
+// For example, this checks for empty curly braces, e.g.
 //
 //     in.eq('}') & follows(in.eq('['), in.eq(' '), prev_empty_array) // { <whitespace>* }
 //
@@ -4763,9 +4763,9 @@ WARN_UNUSED error_code implementation::minify(const uint8_t *buf, size_t len, ui
 //   support values with more than 23 bits (which a 4-byte character supports).
 //
 //   e.g. 11111000 10100000 10000000 10000000 10000000 (U+800000)
-//   
+//
 // Legal utf-8 byte sequences per  http://www.unicode.org/versions/Unicode6.0.0/ch03.pdf - page 94:
-// 
+//
 //   Code Points        1st       2s       3s       4s
 //  U+0000..U+007F     00..7F
 //  U+0080..U+07FF     C2..DF   80..BF
@@ -4824,7 +4824,7 @@ namespace utf8_validation {
 
     const simd8<uint8_t> byte_1_high = prev1.shr<4>().lookup_16<uint8_t>(
       // [0___]____ (ASCII)
-      0, 0, 0, 0,                          
+      0, 0, 0, 0,
       0, 0, 0, 0,
       // [10__]____ (continuation)
       0, 0, 0, 0,
@@ -4969,7 +4969,7 @@ namespace utf8_validation {
   // | ASCII (+ 127)        | `1`        | `11111111`   |    -1 |
   // |                      |            | `10000000`   |  -128 |
   // |----------------------|------------|--------------|-------|
-  // 
+  //
   // *Now* we can use signed `>` on all of them:
   //
   // ```
@@ -4998,7 +4998,7 @@ namespace utf8_validation {
   // prev3 = input.prev<3>
   // prev1_flipped = prev1 ^ 0x80; // Same as `+ 128`
   // prev3_flipped = prev3 ^ 0x80; // Same as `+ 128`
-  // prev2_flipped = prev1_flipped.concat<2>(prev3_flipped): // <shuffle: take the first 2 bytes from prev1 and the rest from prev3  
+  // prev2_flipped = prev1_flipped.concat<2>(prev3_flipped): // <shuffle: take the first 2 bytes from prev1 and the rest from prev3
   // ```
   //
   // ### Bringing It All Together: Detecting the Errors
@@ -5055,7 +5055,7 @@ namespace utf8_validation {
   // saving us the cycle we would have earned by using +. Even more, using an instruction with a
   // wider array of ports can help *other* code run ahead, too, since these instructions can "get
   // out of the way," running on a port other instructions can't.
-  // 
+  //
   // Epilogue II: One More Trick
   // ---------------------------
   //
@@ -5288,7 +5288,7 @@ really_inline void json_structural_indexer::step<64>(const uint8_t *block, buf_b
 //    they can make a lot of progress before they need that information.
 // 3. Step 1 doesn't use enough capacity, so we run some extra stuff while we're waiting for that
 //    to finish: utf-8 checks and generating the output from the last iteration.
-// 
+//
 // The reason we run 2 inputs at a time, is steps 2 and 3 are *still* not enough to soak up all
 // available capacity with just one input. Running 2 at a time seems to give the CPU a good enough
 // workout.
@@ -5588,7 +5588,7 @@ static inline uint32_t hex_to_u32_nocheck(
   return v1 | v2 | v3 | v4;
 }
 
-// returns true if the provided byte value is a 
+// returns true if the provided byte value is a
 // "continuing" UTF-8 value, that is, if it starts with
 // 0b10...
 static inline bool is_utf8_continuing(char c) {
@@ -8414,7 +8414,7 @@ namespace simdjson::fallback {
 #ifndef _MSC_VER
 // We sometimes call trailing_zero on inputs that are zero,
 // but the algorithms do not end up using the returned value.
-// Sadly, sanitizers are not smart enough to figure it out. 
+// Sadly, sanitizers are not smart enough to figure it out.
 __attribute__((no_sanitize("undefined"))) // this is deliberate
 #endif // _MSC_VER
 /* result might be undefined when input_num is zero */
@@ -8422,7 +8422,7 @@ really_inline int trailing_zeroes(uint64_t input_num) {
 
 #ifdef _MSC_VER
   unsigned long ret;
-  // Search the mask data from least significant bit (LSB) 
+  // Search the mask data from least significant bit (LSB)
   // to the most significant bit (MSB) for a set bit (1).
   _BitScanForward64(&ret, input_num);
   return (int)ret;
@@ -8441,7 +8441,7 @@ really_inline uint64_t clear_lowest_bit(uint64_t input_num) {
 really_inline int leading_zeroes(uint64_t input_num) {
 #ifdef _MSC_VER
   unsigned long leading_zero = 0;
-  // Search the mask data from most significant bit (MSB) 
+  // Search the mask data from most significant bit (MSB)
   // to least significant bit (LSB) for a set bit (1).
   if (_BitScanReverse64(&leading_zero, input_num))
     return (int)(63 - leading_zero);

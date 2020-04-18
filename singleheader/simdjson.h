@@ -162,7 +162,7 @@ enum {
 #define NO_SANITIZE_UNDEFINED
 #endif
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
 #include <intrin.h> // visual studio
 #endif
 
@@ -260,7 +260,7 @@ constexpr size_t DEFAULT_MAX_DEPTH = 1024;
 #define DEBUG_BLOCK(name, block)
 #endif
 
-#if !defined(_MSC_VER) && !defined(SIMDJSON_NO_COMPUTED_GOTO)
+#if (!defined(_MSC_VER) || defined(__clang__)) && !defined(SIMDJSON_NO_COMPUTED_GOTO)
 // Implemented using Labels as Values which works in GCC and CLANG (and maybe
 // also in Intel's compiler), but won't work in MSVC.
 #define SIMDJSON_USE_COMPUTED_GOTO
@@ -272,7 +272,7 @@ constexpr size_t DEFAULT_MAX_DEPTH = 1024;
 
 #define ISALIGNED_N(ptr, n) (((uintptr_t)(ptr) & ((n)-1)) == 0)
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
 #define really_inline __forceinline
 #define never_inline __declspec(noinline)
 
@@ -1377,7 +1377,7 @@ public:
    *         - CAPACITY if the parser does not have enough capacity and len > max_capacity.
    *         - other json errors if parsing fails.
    */
-  inline simdjson_result<element> load(const std::string &path) noexcept; 
+  inline simdjson_result<element> load(const std::string &path) noexcept;
 
   /**
    * Parse a JSON document and return a temporary reference to it.
@@ -1480,7 +1480,7 @@ public:
    *         - CAPACITY if the parser does not have enough capacity and batch_size > max_capacity.
    *         - other json errors if parsing fails.
    */
-  inline document_stream load_many(const std::string &path, size_t batch_size = DEFAULT_BATCH_SIZE) noexcept; 
+  inline document_stream load_many(const std::string &path, size_t batch_size = DEFAULT_BATCH_SIZE) noexcept;
 
   /**
    * Parse a buffer containing many JSON documents.
@@ -3099,7 +3099,7 @@ inline error_code document::allocate(size_t capacity) noexcept {
 
   // a pathological input like "[[[[..." would generate len tape elements, so
   // need a capacity of at least len + 1, but it is also possible to do
-  // worse with "[7,7,7,7,6,7,7,7,6,7,7,6,[7,7,7,7,6,7,7,7,6,7,7,6,7,7,7,7,7,7,6" 
+  // worse with "[7,7,7,7,6,7,7,7,6,7,7,6,[7,7,7,7,6,7,7,7,6,7,7,6,7,7,7,7,7,7,6"
   //where len + 1 tape elements are
   // generated, see issue https://github.com/lemire/simdjson/issues/345
   size_t tape_capacity = ROUNDUP_N(capacity + 2, 64);
@@ -4117,7 +4117,7 @@ static inline bool is_ascii(char c) {
   return ((unsigned char)c) <= 127;
 }
 
-// if the string ends with  UTF-8 values, backtrack 
+// if the string ends with  UTF-8 values, backtrack
 // up to the first ASCII character. May return 0.
 static inline size_t trimmed_length_safe_utf8(const char * c, size_t len) {
   while ((len > 0) and (not is_ascii(c[len - 1]))) {
